@@ -1,0 +1,25 @@
+services:
+  luma-oled:
+    platform: "linux/arm64"
+    # just the basic robot (headless, includes drivers, publishes description) for the robots raspberry pi
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+      platforms:
+        - "linux/arm64"
+      args:
+        ROS_DISTRO: humble
+        ARCH: arm64
+        UBUNTU: jammy
+    environment:
+      - PYTHONUNBUFFERED=1 # important to show error messages if a ros service crashes!
+    privileged: True
+    image: brean/luma-oled:humble_arm64_001
+    volumes:
+      - ./roslog:/root/.ros/
+      - /dev:/dev
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    devices:
+      - /dev/bus/usb/
+    network_mode: host
+

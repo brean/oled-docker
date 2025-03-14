@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+# MIT license
+# Based on the extended system info by Richard Hull and contributors
+# https://github.com/rm-hull/luma.examples/blob/main/examples/
+
+# regex to parse wireless network
+import re
+
+# read ROS_DOMAIN_ID from os.environ
+import os
+
+# datetime to display uptime human-readable
+from datetime import datetime
+
+# Path to get fonts
+from pathlib import Path
+
+# ROS 2 for battery
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import BatteryState
+
+# vcgen-cmd for raspberry pi undervoltage/throtteling
+from vcgencmd import Vcgencmd
+
+# get devices from luna library and print display information
+from demo_opts import get_device
+from luma.core.render import canvas
+
+# ImageFont for drawing on device
+from PIL import ImageFont
+
+# psutil to get system information (CPU, memory, temperature, ...)
+import psutil
+# socket for ip address
+import socket
+from collections import OrderedDict
+
+
+BASE_PATH = Path(__file__).resolve().parent
+
+
+def get_temp(vcgm):
+    return float(vcgm.measure_temp())
+
+
+def get_cpu():
+    return psutil.cpu_percent()
+
+
+def get_mem():
+    return (psutil.virtual_memory().percent, psutil.virtual_memory().used)
+
+
+def get_disk_usage():
+    usage = psutil.disk_usage("/")
+    return usage.used / usage.total * 100
+
+
+def get_throttle_data(vcgm):
+    return vcgm.get_throttled()['breakdown']
+
+
+def get_uptime():
+    uptime = f'{datetime.now() - datetime.fromtimestamp(psutil.boot_time())}'
+    return uptime.split('.')[0]
+
+
+def ros_id():
+    return os.environ['ROS_DOMAIN_ID']
+
+
+def _find_single_ipv4_address(addrs):
+    for addr in addrs:
+        if addr.family == socket.AddressFamily.AF_INET:  # IPv4
+            return addr.address
+
+
+def get_ipv4_address(interface_name=None):
+    if_addrs = psutil.net_if_addrs()
+
+    if isinstance(interface_name, str) and interface_name in if_addrs:
+        addrs = if_addrs.get(interface_name)
+        address = _find_single_ipv4_address(addrs)
+        return address if isinstance(address, str) else ""
+    else:
+        if_stats = psutil.net_if_stats()
+        # remove loopback
+        if_stats_filtered = {
+            key: if_stats[key]
+            for key, stat in if_stats.items()
+            if "loopback" not in stat.flags
+        }
+        # sort interfaces by
+        # 1. Up/Down
+        # 2. Duplex mode (full: 2, half: 1, unknown: 0)
+        if_names_sorted = [
+            stat[0] for stat in sorted(
+                if_stats_filtered.items(),
+                key=lambda x: (x[1].isup, x[1].duplex),
+                reverse=True)]
+        if_addrs_sorted = OrderedDict(
+            (key, if_addrs[key]) for key in if_names_sorted if key in if_addrs)
+
+        for _, addrs in if_addrs_sorted.items():
+            address = _find_single_ipv4_address(addrs)
+            if isinstance(address, str):
+                return address
+
+        return ""
+
+
+def format_percent(percent):
+    return "%5.1f" % (percent)
+
+
+def throttle_emojis(throttle_data):
+    txt = ''
+    txt += '⚡' if throttle_data['0'] else ' '
+    txt += '⚡' if throttle_data['16'] else ' '
+    txt += '☹' if throttle_data['18'] else ' '
+    return txt
+
+
+def get_wifi_strength():
+    with open('/proc/net/wireless', 'r', encoding='utf-8') as fd:
+        text = fd.read()
+        text = text.split('\n')
+        if len(text[2]) < 1:
+            return -1
+        first_line = re.sub('[\s\|]{2,}', ' ', text[1]).split(' ')
+        sec_line = re.sub('[\s\|]{2,}', ' ', text[2]).split(' ')
+        index = first_line.index('link')
+        wifi_strength = sec_line[index]
+        return float(wifi_strength)
+
+
+class BatteryInfoNode(Node):
+    def __init__(self, display):
+        super().__init__('display_info_node')
+        self.vcgm = Vcgencmd()
+        self.display = display
+        self.create_timer(1.0, self.update_stats)
+        self.battery_percentage = 0.0
+        self.subscription = self.create_subscription(
+            BatteryState,
+            'battery_state',
+            self.listener_callback,
+            10)
+
+    def listener_callback(self, msg):
+        self.battery_percentage = msg.percentage
+
+    def update_stats(self):
+        # TODO: configure this using a YAML-file and/or a ROS 2 service :-)
+        # TODO: add a second ROS2-service that sends only the data.
+        ip = get_ipv4_address('wlan0')
+        wifi_strength = get_wifi_strength()
+        wifi = (
+            {
+                'type': 'text',
+                'value': 'WIFI: (not connected)'
+            }
+            if wifi_strength == -1 else
+            {
+                'type': 'int',
+                'value': wifi_strength,
+                'max': 70,
+                'unit': '/70',
+                'text': 'WIFI'
+            }
+        )
+        data = [
+            {
+                'type': 'text',
+                'value': f'IP: {ip}'
+            }, {
+                'type': 'percentage',
+                'text': 'TEMP',
+                'unit': "'C",
+                'value': get_temp(self.vcgm)
+            }, {
+                'type': 'percentage',
+                'text': 'BAT',
+                'unit': ' %',
+                'value': self.battery_percentage
+            },
+            wifi,
+            {
+                'type': 'text',
+                'value': throttle_emojis(get_throttle_data(self.vcgm))
+            },
+            {
+                'type': 'text',
+                'line': 4,
+                'left': 50,
+                'value': f'ROS ID: {ros_id()}'
+            }
+        ]
+        # {
+        #     'type': 'percentage',
+        #     'value': get_mem(),
+        #     'text': 'MEM',
+        #     'unit': ' mb',
+        # }
+        # {
+        #     'type': 'percentage',
+        #     'value': get_cpu(),
+        #     'text': 'CPU',
+        #     'unit': ' %',
+        # }
+        # {
+        #     'type': 'text',
+        #     'value': f'UP: {get_uptime()}'
+        # }
+        self.display.display_stats(data)
+
+
+class Display:
+    def __init__(self):
+        self.font_size = 12
+        self.font_size_full = 10
+        self.margin_y_line = [0, 13, 25, 38, 51]
+        self.margin_x_figure = 78
+        self.margin_x_bar = 31
+        self.bar_width = 52
+        self.bar_width_full = 95
+        self.bar_height = 8
+        self.bar_margin_top = 3
+        self.display_height = 64
+
+        self.lines = int(self.display_height / self.font_size)
+
+        self.device = get_device()
+        self.font_default = ImageFont.truetype(
+            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
+            self.font_size)
+        self.font_full = ImageFont.truetype(
+            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
+            self.font_size_full)
+
+    def draw_text(self, draw, margin_x, line_num, text):
+        draw.text((
+            margin_x,
+            self.margin_y_line[line_num]),
+            text,
+            font=self.font_default, fill="white")
+
+    def draw_bar(self, draw, line_num, percent):
+        if percent >= 100:
+            return self.draw_bar_full(draw, line_num)
+        top_left_y = self.margin_y_line[line_num] + self.bar_margin_top
+        draw.rectangle((
+            self.margin_x_bar,
+            top_left_y,
+            self.margin_x_bar + self.bar_width,
+            top_left_y + self.bar_height),
+            outline="white")
+        draw.rectangle((
+            self.margin_x_bar,
+            top_left_y,
+            self.margin_x_bar + self.bar_width * percent / 100,
+            top_left_y + self.bar_height),
+            fill="white")
+
+    def draw_bar_full(self, draw, line_num):
+        top_left_y = self.margin_y_line[line_num] + self.bar_margin_top
+        draw.rectangle((
+            self.margin_x_bar,
+            top_left_y,
+            self.margin_x_bar + self.bar_width_full,
+            top_left_y + self.bar_height),
+            fill="white")
+        draw.text(
+            (65, top_left_y - 2), "100 %",
+            font=self.font_full, fill="black")
+
+    def display_stats(self, data):
+        with canvas(self.device) as draw:
+            for num, line in enumerate(data):
+                if 'type' not in line:
+                    continue
+                _type = line['type']
+                value = line['value']
+                line_num = line['line'] if 'line' in line else num
+                if _type in ['percentage', 'int']:
+                    self.draw_text(draw, 0, line_num, line['text'])
+
+                    percentage_value = value
+                    if 'max' in line:
+                        percentage_value = value / line['max'] * 100
+                    self.draw_bar(draw, line_num, percentage_value)
+
+                    if _type == 'int':
+                        val = f'  {int(value)}' if value >= 10\
+                            else f'   {int(value)}'
+                    else:
+                        val = format_percent(value)
+                    unit = line['unit']
+                    self.draw_text(
+                        draw, self.margin_x_figure, line_num, f"{val}{unit}")
+                elif _type == 'text':
+                    value = line['value']
+                    left = line['left'] if 'left' in line else 0
+                    self.draw_text(draw, left, line_num, value)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    node = BatteryInfoNode(Display())
+
+    rclpy.spin(node)
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
