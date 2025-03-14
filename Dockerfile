@@ -21,6 +21,6 @@ RUN pip3 install vcgencmd
 
 WORKDIR /app/oled_screen
 
-COPY src/*.py /app/oled_screen/
+COPY src/ /app/oled_screen/
 
 CMD ["python3", "sys_info_extended.py"]
