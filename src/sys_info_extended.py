@@ -129,24 +129,43 @@ def format_percent(percent):
 
 
 def throttle_emojis(throttle_data):
-    txt = ''
+    icons = []
     # stuff that happened in general
-    txt += '⚡' if throttle_data[UNDERVOLTAGE_OCCURED] else '-'
+    icons.append(
+        ('t', '⚡')  # if throttle_data[UNDERVOLTAGE_OCCURED] else ('t', '-')
+    )
     # chip for throtteling
-    txt += '\uf2db' if throttle_data[THROTTLING_OCCURED] else '-'
+    icons.append(
+        ('i', '\uf2db')
+        # txt += '\uf2db' #if throttle_data[THROTTLING_OCCURED] else '-'
+    )
     # gauge for frequency capped
-    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPP_OCCURED] else '-'
+    icons.append(
+        ('i', '\uf0e4')  # if throttle_data[ARM_FREQ_CAPP_OCCURED] else '-'
+    )
     # temperature for temp
-    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT_OCCURED] else '-'
-
-    txt += '|'
+    icons.append(
+        ('i', '\uf2c7')  # if throttle_data[SOFT_TEMPERATURE_LIMIT_OCCURED]
+    )
+    icons.append(('t', '|'))
 
     # stuff that is currently happending
-    txt += '⚡' if throttle_data[UNDERVOLTAGE_DETECTED] else '-'
-    txt += '\uf2db' if throttle_data[CURRENTLY_THROTTLED] else '-'
-    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPPED] else '-'
-    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT] else '-'
-    return txt
+    icons.append(
+        ('t', '⚡')  # if throttle_data[UNDERVOLTAGE_DETECTED] else '-'
+    )
+    icons.append(
+        ('i', '\uf2db')
+        # if throttle_data[CURRENTLY_THROTTLED] else '-'
+    )
+    icons.append(
+        ('i', '\uf0e4')
+        # if throttle_data[ARM_FREQ_CAPPED] else '-'
+    )
+    icons.append(
+        ('i', '\uf2c7')
+        # if throttle_data[SOFT_TEMPERATURE_LIMIT] else '-'
+    )
+    return icons
 
 
 def get_wifi_strength():
@@ -200,7 +219,7 @@ class BatteryInfoNode(Node):
         data = [
             {
                 'type': 'text',
-                'value': f'IP: {ip}'
+                'value': f'IP:{ip}'
             }, {
                 'type': 'percentage',
                 'text': 'TEMP',
@@ -214,7 +233,7 @@ class BatteryInfoNode(Node):
             },
             wifi,
             {
-                'type': 'text',
+                'type': 'text_icons',
                 'value': throttle_emojis(get_throttle_data(self.vcgm))
             },
             {
@@ -259,12 +278,16 @@ class Display:
         self.lines = int(self.display_height / self.font_size)
 
         self.device = get_device()
-        self.font_default = ImageFont.truetype(
-            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
-            self.font_size)
+        font_path = BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")
+        if not font_path.exists():
+            print(f'WARNING: font {font_path} not fount!')
+        self.font_default = ImageFont.truetype(str(font_path), self.font_size)
         self.font_full = ImageFont.truetype(
-            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
-            self.font_size_full)
+            str(font_path), self.font_size_full)
+        font_awe_path = BASE_PATH.joinpath(
+            "fonts", "fontawesome-webfont.ttf")
+        self.font_awesome = ImageFont.truetype(
+            str(font_awe_path), self.font_size)
 
     def draw_text(self, draw, margin_x, line_num, text):
         draw.text((
@@ -272,6 +295,13 @@ class Display:
             self.margin_y_line[line_num]),
             text,
             font=self.font_default, fill="white")
+
+    def draw_icon(self, draw, margin_x, line_num, text):
+        draw.text((
+            margin_x,
+            self.margin_y_line[line_num]),
+            text,
+            font=self.font_awesome, fill="white")
 
     def draw_bar(self, draw, line_num, percent):
         if percent >= 100:
@@ -330,6 +360,17 @@ class Display:
                     value = line['value']
                     left = line['left'] if 'left' in line else 0
                     self.draw_text(draw, left, line_num, value)
+                elif _type == 'text_icons':
+                    icon_left = 0
+                    left = line['left'] if 'left' in line else 0
+                    for (txt_type, txt_icon) in line['value']:
+                        if txt_type == 'i':
+                            self.draw_icon(
+                                draw, left + icon_left, line_num, txt_icon)
+                        else:
+                            self.draw_text(
+                                draw, left + icon_left, line_num, txt_icon)
+                        icon_left += 7
 
 
 def main(args=None):
