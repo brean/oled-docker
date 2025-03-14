@@ -131,21 +131,22 @@ def format_percent(percent):
 def throttle_emojis(throttle_data):
     txt = ''
     # stuff that happened in general
+    # bolt for underwoltage
     txt += '⚡' if throttle_data[UNDERVOLTAGE_OCCURED] else '-'
-    # chip for throtteling
-    txt += '\uf2db' if throttle_data[THROTTLING_OCCURED] else '-'
-    # gauge for frequency capped
-    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPP_OCCURED] else '-'
-    # temperature for temp
-    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT_OCCURED] else '-'
+    # frowning face for throttling
+    txt += '☹️' if throttle_data[THROTTLING_OCCURED] else '-'
+    # C for cpu _F_requency capped
+    txt += 'F' if throttle_data[ARM_FREQ_CAPP_OCCURED] else '-'
+    # T for _T_emperature
+    txt += 'T' if throttle_data[SOFT_TEMPERATURE_LIMIT_OCCURED] else '-'
 
     txt += '|'
 
     # stuff that is currently happending
     txt += '⚡' if throttle_data[UNDERVOLTAGE_DETECTED] else '-'
-    txt += '\uf2db' if throttle_data[CURRENTLY_THROTTLED] else '-'
-    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPPED] else '-'
-    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT] else '-'
+    txt += '☹️' if throttle_data[CURRENTLY_THROTTLED] else '-'
+    txt += 'F' if throttle_data[ARM_FREQ_CAPPED] else '-'
+    txt += 'T' if throttle_data[SOFT_TEMPERATURE_LIMIT] else '-'
     return txt
 
 
@@ -200,7 +201,7 @@ class BatteryInfoNode(Node):
         data = [
             {
                 'type': 'text',
-                'value': f'IP: {ip}'
+                'value': f'IP:{ip}'
             }, {
                 'type': 'percentage',
                 'text': 'TEMP',
@@ -220,8 +221,8 @@ class BatteryInfoNode(Node):
             {
                 'type': 'text',
                 'line': 4,
-                'left': 70,
-                'value': f'ROS: {ros_id()}'
+                'left': 77,
+                'value': f'ROS:{ros_id()}'
             }
         ]
         # {
