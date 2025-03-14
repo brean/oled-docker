@@ -156,8 +156,8 @@ def get_wifi_strength():
         text = text.split('\n')
         if len(text[2]) < 1:
             return -1
-        first_line = re.sub('[\s\|]{2,}', ' ', text[1]).split(' ')
-        sec_line = re.sub('[\s\|]{2,}', ' ', text[2]).split(' ')
+        first_line = re.sub(r'[\s\|]{2,}', ' ', text[1]).split(' ')
+        sec_line = re.sub(r'[\s\|]{2,}', ' ', text[2]).split(' ')
         index = first_line.index('link')
         wifi_strength = sec_line[index]
         return float(wifi_strength)
