@@ -260,12 +260,12 @@ class Display:
         self.lines = int(self.display_height / self.font_size)
 
         self.device = get_device()
-        self.font_default = ImageFont.truetype(
-            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
-            self.font_size)
+        font_path = BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")
+        if not font_path.exists():
+            print(f'WARNING: font {font_path} not fount!')
+        self.font_default = ImageFont.truetype(str(font_path), self.font_size)
         self.font_full = ImageFont.truetype(
-            str(BASE_PATH.joinpath("fonts", "DejaVuSansMono.ttf")),
-            self.font_size_full)
+            str(font_path), self.font_size_full)
 
     def draw_text(self, draw, margin_x, line_num, text):
         draw.text((
