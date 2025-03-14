@@ -220,8 +220,8 @@ class BatteryInfoNode(Node):
             {
                 'type': 'text',
                 'line': 4,
-                'left': 50,
-                'value': f'ROS ID: {ros_id()}'
+                'left': 70,
+                'value': f'ROS: {ros_id()}'
             }
         ]
         # {
