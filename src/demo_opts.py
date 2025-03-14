@@ -5,6 +5,7 @@
 import sys
 import logging
 
+import luma.core
 from luma.core import cmdline, error
 
 
@@ -34,10 +35,11 @@ def display_settings(device, args):
     else:
         lib_name = lib_version = 'unknown'
 
-    import luma.core
-    version = f'luma.{lib_name} {lib_version} (luma.core {luma.core.__version__})'
+    version = f'luma.{lib_name} {lib_version} '\
+        f'(luma.core {luma.core.__version__})'
 
-    return f'Version: {version}\nDisplay: {args.display}\n{iface}Dimensions: {device.width} x {device.height}\n{"-" * 60}'
+    return f'Version: {version}\nDisplay: {args.display}\n{iface}'\
+        f'Dimensions: {device.width} x {device.height}\n{"-" * 60}'
 
 
 def get_device(actual_args=None):

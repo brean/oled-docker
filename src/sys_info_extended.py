@@ -37,6 +37,17 @@ import socket
 from collections import OrderedDict
 
 
+# https://www.raspberrypi.com/documentation/computers/os.html#vcgencmd
+UNDERVOLTAGE_DETECTED = '0'
+ARM_FREQ_CAPPED = '1'
+CURRENTLY_THROTTLED = '2'
+SOFT_TEMPERATURE_LIMIT = '3'
+UNDERVOLTAGE_OCCURED = '16'
+ARM_FREQ_CAPP_OCCURED = '17'
+THROTTLING_OCCURED = '18'
+SOFT_TEMPERATURE_LIMIT_OCCURED = '19'
+
+
 BASE_PATH = Path(__file__).resolve().parent
 
 
@@ -67,7 +78,10 @@ def get_uptime():
 
 
 def ros_id():
-    return os.environ['ROS_DOMAIN_ID']
+    if 'ROS_DOMAIN_ID' in os.environ:
+        return os.environ['ROS_DOMAIN_ID']
+    else:
+        return '0'
 
 
 def _find_single_ipv4_address(addrs):
@@ -116,9 +130,22 @@ def format_percent(percent):
 
 def throttle_emojis(throttle_data):
     txt = ''
-    txt += '⚡' if throttle_data['0'] else ' '
-    txt += '⚡' if throttle_data['16'] else ' '
-    txt += '☹' if throttle_data['18'] else ' '
+    # stuff that happened in general
+    txt += '⚡' if throttle_data[UNDERVOLTAGE_OCCURED] else '-'
+    # chip for throtteling
+    txt += '\uf2db' if throttle_data[THROTTLING_OCCURED] else '-'
+    # gauge for frequency capped
+    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPP_OCCURED] else '-'
+    # temperature for temp
+    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT_OCCURED] else '-'
+
+    txt += '|'
+
+    # stuff that is currently happending
+    txt += '⚡' if throttle_data[UNDERVOLTAGE_DETECTED] else '-'
+    txt += '\uf2db' if throttle_data[CURRENTLY_THROTTLED] else '-'
+    txt += '\uf0e4' if throttle_data[ARM_FREQ_CAPPED] else '-'
+    txt += '\uf2c7' if throttle_data[SOFT_TEMPERATURE_LIMIT] else '-'
     return txt
 
 
