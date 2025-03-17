@@ -20,3 +20,6 @@ You can configure it to show different values, the default is:
 ## Installation
 Just copy the docker-compose.yml to your robot, write your own or checkout the whole repository then run `docker compose up -d` and wait until the docker images are downloaded, 1-2 minutes later the information should show up on the connected screen.
 If the docker deamon is setup to auto-start (for example via systemctl/systemd) the docker container will automatically start every time you start the raspberry pi.
+
+## Troubleshooting
+If you get the error message `sys_info_extended.py: error: I2C device not found: /dev/i2c-1` you need to activate the I2C-interface on the raspberry pi with `raspi-config`
