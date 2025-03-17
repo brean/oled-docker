@@ -51,8 +51,25 @@ SOFT_TEMPERATURE_LIMIT_OCCURED = '19'
 BASE_PATH = Path(__file__).resolve().parent
 
 
+def get_temp_psutil():
+    temperatures = psutil.sensors_temperatures()
+    if 'coretemp' in temperatures:
+        for temp in temperatures['coretemp']:
+            return temp.current
+    elif 'thermal_zone' in temperatures:
+        for temp in temperatures['thermal_zone']:
+            return temp.current
+    else:
+        return 0.0
+
 def get_temp(vcgm):
-    return float(vcgm.measure_temp())
+    if not vcgm:
+        return get_temp_psutil()
+    try:
+        return float(vcgm.measure_temp())
+    except subprocess.CalledProcessError:
+        # fallback to psutil if vcgm isn't working or not installed
+        return get_temp_psutil()
 
 
 def get_cpu():
@@ -69,7 +86,12 @@ def get_disk_usage():
 
 
 def get_throttle_data(vcgm):
-    return vcgm.get_throttled()['breakdown']
+    if not vcgm:
+        return None
+    try:
+        return vcgm.get_throttled()['breakdown']
+    except subprocess.CalledProcessError:
+        return None
 
 
 def get_uptime():
@@ -213,18 +235,20 @@ class BatteryInfoNode(Node):
                 'unit': ' %',
                 'value': self.battery_percentage
             },
-            wifi,
-            {
-                'type': 'text',
-                'value': throttle_emojis(get_throttle_data(self.vcgm))
-            },
-            {
-                'type': 'text',
-                'line': 4,
-                'left': 77,
-                'value': f'ROS:{ros_id()}'
-            }
+            wifi
         ]
+        _throttle = get_throttle_data(self.vcgm)
+        if _throttle:
+            data.append({
+                'type': 'text',
+                'value': throttle_emojis()
+            })
+        data.append({
+            'type': 'text',
+            'line': 4,
+            'left': 77,
+            'value': f'ROS:{ros_id()}'
+        })
         # {
         #     'type': 'percentage',
         #     'value': get_mem(),
