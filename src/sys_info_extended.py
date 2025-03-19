@@ -241,7 +241,7 @@ class BatteryInfoNode(Node):
         if _throttle:
             data.append({
                 'type': 'text',
-                'value': throttle_emojis()
+                'value': throttle_emojis(_throttle)
             })
         data.append({
             'type': 'text',
