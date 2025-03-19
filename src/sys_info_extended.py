@@ -20,8 +20,14 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
 
-# vcgen-cmd for raspberry pi undervoltage/throtteling
-from vcgencmd import Vcgencmd
+import subprocess
+
+try:
+    # vcgen-cmd for raspberry pi undervoltage/throtteling
+    from vcgencmd import Vcgencmd
+    VCGENCMD = True
+except ModuleNotFoundError:
+    VCGENCMD = False
 
 # get devices from luna library and print display information
 from demo_opts import get_device
@@ -61,6 +67,7 @@ def get_temp_psutil():
             return temp.current
     else:
         return 0.0
+
 
 def get_temp(vcgm):
     if not vcgm:
@@ -103,7 +110,7 @@ def ros_id():
     if 'ROS_DOMAIN_ID' in os.environ:
         return os.environ['ROS_DOMAIN_ID']
     else:
-        return '0'
+        return None
 
 
 def _find_single_ipv4_address(addrs):
@@ -188,7 +195,10 @@ def get_wifi_strength():
 class BatteryInfoNode(Node):
     def __init__(self, display):
         super().__init__('display_info_node')
-        self.vcgm = Vcgencmd()
+        if VCGENCMD:
+            self.vcgm = Vcgencmd()
+        else:
+            self.vcgm = None
         self.display = display
         self.create_timer(1.0, self.update_stats)
         self.battery_percentage = 0.0
@@ -243,24 +253,31 @@ class BatteryInfoNode(Node):
                 'type': 'text',
                 'value': throttle_emojis(_throttle)
             })
-        data.append({
-            'type': 'text',
-            'line': 4,
-            'left': 77,
-            'value': f'ROS:{ros_id()}'
-        })
+        _ros_id = ros_id()
+        if _ros_id:
+            data.append({
+                'type': 'text',
+                'line': 4,
+                'left': 77,
+                'value': f'ROS:{_ros_id}'
+            })
+
+        # additional options of data to display:
+        # memory usage:
         # {
         #     'type': 'percentage',
         #     'value': get_mem(),
         #     'text': 'MEM',
         #     'unit': ' mb',
         # }
+        # CPU usage
         # {
         #     'type': 'percentage',
         #     'value': get_cpu(),
         #     'text': 'CPU',
         #     'unit': ' %',
         # }
+        # uptime:
         # {
         #     'type': 'text',
         #     'value': f'UP: {get_uptime()}'

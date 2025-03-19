@@ -14,7 +14,7 @@ services:
         UBUNTU: jammy
     environment:
       - PYTHONUNBUFFERED=1 # important to show error messages if a ros service crashes!
-      - ROS_DOMAIN_ID=1
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID}
     privileged: True
     image: brean/luma-oled:humble_arm64_001
     volumes:
