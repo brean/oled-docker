@@ -192,6 +192,14 @@ def get_wifi_strength():
         return float(wifi_strength)
 
 
+def get_wifi_name():
+    try:
+        return subprocess.check_output(
+            ['iwgetid', '-r']).decode('utf-8').strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 class BatteryInfoNode(Node):
     def __init__(self, display):
         super().__init__('display_info_node')
@@ -263,6 +271,11 @@ class BatteryInfoNode(Node):
             })
 
         # additional options of data to display:
+        # Name of connected WiFi AccessPoint:
+        # {
+        #     'type': 'text',
+        #     'value': f'AP: {get_wifi_name()}'
+        # }
         # memory usage:
         # {
         #     'type': 'percentage',
