@@ -198,14 +198,14 @@ def _get_wifi_name():
         if not ap_txt:
             return None
         ap_txt = ap_txt.decode('utf-8')
-        if ap_text:
+        if ap_txt:
             return ap_txt.strip()
     except subprocess.CalledProcessError:
         return None
 
 
 def get_wifi_name():
-    ap_name = _get_wifi_name():
+    ap_name = _get_wifi_name()
     if ap_name:
         return ap_name
     else:
