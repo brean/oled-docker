@@ -192,12 +192,24 @@ def get_wifi_strength():
         return float(wifi_strength)
 
 
-def get_wifi_name():
+def _get_wifi_name():
     try:
-        return subprocess.check_output(
-            ['iwgetid', '-r']).decode('utf-8').strip()
+        ap_txt = subprocess.check_output(['iwgetid', '-r'])
+        if not ap_txt:
+            return None
+        ap_txt = ap_txt.decode('utf-8')
+        if ap_text:
+            return ap_txt.strip()
     except subprocess.CalledProcessError:
         return None
+
+
+def get_wifi_name():
+    ap_name = _get_wifi_name():
+    if ap_name:
+        return ap_name
+    else:
+        return '(not connected)'
 
 
 class BatteryInfoNode(Node):
