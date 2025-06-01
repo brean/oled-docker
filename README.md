@@ -1,4 +1,4 @@
-# Docker OLED Display setup
+# Docker OLED Display setup (for robotics)
 Docker ROS 2 humble environment for your Rasbperry PI to show some information that are interesting in robotics.
 You can configure it to show different values, the default is:
 
